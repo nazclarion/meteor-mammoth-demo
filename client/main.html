@@ -1,0 +1,25 @@
+<head>
+    <title>Mammoth demo</title>
+</head>
+
+<body>
+    {{> Mammoth }}
+</body>
+<template name="Mammoth">
+    <form>
+        <input id="conver-docx-to-html" type="submit" name="" value="Convert .docx to HTML">
+        <input id="docx-url-input" type="text" value="{{docxUrl}}" placeholder=".docx URL">
+    </form>
+    <div>
+        {{#with docxUrl}}
+            <hr> Download .docx: <a href="{{docxUrl}}" title="Link to .docx file">{{this}}</a>
+        {{/with}}
+    </div>
+    <div id="docxHtml">
+        {{#with docxHtml}}
+            <hr>
+                {{{this}}}
+            <hr>
+        {{/with}}
+    </div>
+</template>

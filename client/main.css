@@ -1,0 +1,23 @@
+/* CSS declarations go here */
+
+input#docx-url-input {
+	min-width: 75%;
+}
+
+/* Docx styles */
+table, td {
+    border-collapse: collapse;
+    border: 1px solid black;
+}
+
+th, td {
+    text-align: left;
+    padding: 8px;
+}
+
+.green {
+	color: green;
+}
+.red {
+	color: red;
+}
