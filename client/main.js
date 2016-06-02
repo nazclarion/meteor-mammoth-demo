@@ -1,9 +1,14 @@
 import './main.html';
 import { Template } from 'meteor/templating';
 import { ReactiveVar } from 'meteor/reactive-var';
+import { Random } from 'meteor/random';
 
 const htmlToBlob = (htmlString) => {
     return new Blob([htmlString], { type: 'text/html' });
+}
+
+const htmlToFile = (htmlString, name = `docx-${Random.id()}.html`) => {
+    return new File([htmlString], name, { type: 'text/html' });
 }
 
 const validateURL = (urlString) => {
@@ -45,8 +50,8 @@ Template.Mammoth.onCreated(() => {
                 } else {
                     instance._docxHTML.set(result);
 
-                    // // Convert html string to Blob
-                    // console.log('html blob: ', htmlToBlob(result));
+                    // Convert html string to Blob
+                    console.log('File: ', htmlToFile(result));
                 }
             }
         });
