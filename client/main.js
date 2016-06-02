@@ -1,11 +1,20 @@
+import './main.html';
 import { Template } from 'meteor/templating';
 import { ReactiveVar } from 'meteor/reactive-var';
-import { HTTP } from 'meteor/http';
-const mammoth = require('./lib/mammoth.browser.min.js');
 
-import './main.html';
+const htmlToBlob = (htmlString) => {
+    return new Blob([htmlString], { type: 'text/html' });
+}
 
-// import { getServiceData } from '../imports/api/trello/methods.js';
+const validateURL = (urlString) => {
+    var urlregex = /^(https?|ftp):\/\/([a-zA-Z0-9.-]+(:[a-zA-Z0-9.&%$-]+)*@)*((25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3}|([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.(com|edu|gov|int|mil|net|org|biz|arpa|info|name|pro|aero|coop|museum|[a-zA-Z]{2}))(:[0-9]+)*(\/($|[a-zA-Z0-9.,?'\\+&%$#=~_-]+))*$/;
+    return urlregex.test(urlString);
+}
+
+const validateDocxExt = (urlString) => {
+    return urlString.match(/\.([^\./\?]+)($|\?)/)[1];
+}
+
 Template.Mammoth.onCreated(() => {
     const instance = Template.instance();
 
@@ -26,66 +35,21 @@ Template.Mammoth.onCreated(() => {
         instance._docxHTML.set('Converting .docx to html ...');
         Meteor.call('mammoth.getHtmlFromDocxUrl', url, (error, result) => {
             if (error) {
+                // HTTP.call errors here
                 console.log(`Error: ${error}`);
-                instance._docxHTML.set(`Conversion failed: ${error.error}`);
+                instance._docxHTML.set(`Failed to get file: ${error.message}`);
             } else {
-                instance._docxHTML.set(result);
+                if (result.error) {
+                    // Content validation errors, Mammoth failed to convert
+                    instance._docxHTML.set(`Failed to convert:  ${result.message}`);
+                } else {
+                    instance._docxHTML.set(result);
+
+                    // // Convert html string to Blob
+                    // console.log('html blob: ', htmlToBlob(result));
+                }
             }
         });
-
-        // // Convert .docx to html on client side
-        // // FIXME: result from HTTP.call returned as weird strings instead of 'arraybuffer'
-        // //     FIXED: meteor add aldeed:http
-        // // FIXME: Fails to convert some urls
-        // instance._docxHTML.set('Loading .docx ...');
-        // HTTP.call('GET', url, {
-        //     responseType: 'arraybuffer', // requires aldeed:http package
-        // }, function(error, result) {
-        //     if (error) {
-        //         console.log(`HTTP.call: ${error}`);
-        //         instance._docxHTML.set(`Loading failed: ${error}`);
-        //     } else {
-        //         console.log('Response: ', result.content);
-        //         instance._docxHTML.set('Converting .docx to html ...');
-        //         mammoth.convertToHtml({ arrayBuffer: result.content }, options)
-        //             .then((result) => {
-        //                 console.log('Messages: ', result.messages);
-        //                 instance._docxHTML.set(result.value);
-        //             })
-        //             .catch(function(e) {
-        //                 console.log(e); // "oh, no!"
-        //                 instance._docxHTML.set(`Convertion failed: ${e}`);
-        //             })
-        //             .done();
-        //     }
-        // });
-
-        // // Convert .docx to html on client side
-        // // FIXME: Fails to convert some urls
-        // instance._docxHTML.set('Loading .docx ...');
-        // const xhr = new XMLHttpRequest();
-        // xhr.open('GET', url, true);
-        // xhr.responseType = 'arraybuffer';
-
-        // xhr.onload = (e) => {
-        //     console.log('Response: ', xhr.response);
-        //     instance._docxHTML.set('Converting .docx to html ...');
-        //     mammoth.convertToHtml({ arrayBuffer: xhr.response }, options)
-        //         .then((result) => {
-        //             console.log('Messages: ', result.messages);
-        //             instance._docxHTML.set(result.value);
-        //         })
-        //         .catch((e) => {
-        //             console.log(e); // "oh, no!"
-        //             instance._docxHTML.set(`Convertion failed: ${e}`);
-        //         })
-        //         .done();
-        // };
-        // xhr.onerror = (e) => {
-        //     console.log(e); // "oh, no!"
-        //     instance._docxHTML.set(`Loading failed: ${e}`);
-        // }
-        // xhr.send();
     }
 });
 Template.Mammoth.helpers({
@@ -99,10 +63,28 @@ Template.Mammoth.helpers({
 Template.Mammoth.events({
     'click #conver-docx-to-html, submit form' (event, instance) {
         event.preventDefault();
-        instance._getDocxFromUrl(instance._docxUrl.get());
+        instance._docxHTML.set(null);
+
+        const url = instance._docxUrl.get();
+        const validUrl = url && validateURL(url);
+        const urlFileExt = url && validateDocxExt(url);
+
+        if (!validUrl) {
+            instance._docxHTML.set(`URL must be absolute and start with http:// or https://`);
+            return;
+        }
+
+        if (urlFileExt !== 'docx') {
+            instance._docxHTML.set(`Invalid file extension: ${urlFileExt}!`);
+            return;
+        }
+        instance._getDocxFromUrl(url);
     },
     'input #docx-url-input': _.debounce((event, instance) => {
-        // TODO: verify URL string - event.target.value
-        instance._docxUrl.set(event.target.value)
+        instance._docxHTML.set(null);
+        const url = event.target.value;
+
+        instance._docxUrl.set(url);
+
     }, 300),
 });

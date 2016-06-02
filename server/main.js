@@ -48,22 +48,29 @@ Meteor.methods({
             responseType: 'buffer', // requires aldeed:http package
         }, (error, result) => {
             if (error) {
-                console.log('Error: ', error);
-                fut.return(error.error);
-            } else {
-                // mammoth.convertToHtml({ buffer: new Buffer(result.content, 'utf8') }, options)
-                mammoth.convertToHtml({ buffer: result.content }, options)
-                    .then((result) => {
-                        console.log('Messages: ', result.messages);
-                        const filePath = saveHtmlFile(result.value);
-                        if (filePath) {
-                            uploadFileToS3(filePath);
-                        }
-
-                        fut.return(result.value);
-                    })
-                    .done();
+                fut.return(new Meteor.Error(error));
             }
+
+            if (result.headers['content-type'] !== 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+                fut.return(new Meteor.Error('TypeError', `Invalid content type - ${result.headers['content-type']}`));
+            }
+
+            // mammoth.convertToHtml({ buffer: new Buffer(result.content, 'utf8') }, options)
+            mammoth.convertToHtml({ buffer: result.content }, options)
+                .then((result) => {
+                    console.log('Messages: ', result.messages);
+                    const filePath = saveHtmlFile(result.value);
+                    if (filePath) {
+                        uploadFileToS3(filePath);
+                    }
+
+                    fut.return(result.value);
+                })
+                .catch((e) => {
+                    console.log('Mammoth catch: ', e.TypeError);
+                    fut.return(e);
+                })
+                .done();
         });
 
         return fut.wait();
